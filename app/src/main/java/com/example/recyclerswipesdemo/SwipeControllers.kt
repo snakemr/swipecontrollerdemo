@@ -2,96 +2,28 @@ package com.example.recyclerswipesdemo
 
 import android.annotation.SuppressLint
 import android.graphics.Canvas
-import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.children
 import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.android.synthetic.main.item.view.*
 import kotlin.math.absoluteValue
 
-class Template(
-    var name: String
-)
-
-class MainActivity : AppCompatActivity() {
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-
-        val controller = SwipeController().apply {
-            buttonLeftText = "Edit"
-            buttonRightText = "Delete"
-        }
-
-        val adapter = TemplateAdapter(
-            (1..32).map {
-                Template("Item "+it.toString())
-            }.toMutableList()
-            ,controller
-        )
-
-        list.adapter = adapter
-        list.layoutManager = LinearLayoutManager(this)
-        ItemTouchHelper(controller).attachToRecyclerView(list)
-    }
-}
-
-class TemplateAdapter(var items: MutableList<Template>, val controller: SwipeController) : RecyclerView.Adapter<TemplateAdapter.ViewHolder>(){
-    override fun getItemCount() = items.size
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
-        ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item, parent, false))
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) = holder.bind(items[position], position)
-    inner class ViewHolder(val view: View) : RecyclerView.ViewHolder(view), SwipeController.ViewHolder {
-        override val buttonLeft = view.buttonLeft
-        override val buttonRight = view.buttonRight
-        override val text = view.text
-        fun bind(item: Template, position: Int) = with(itemView) {
-            text.text = item.name
-            view.setOnClickListener {
-                Toast.makeText(context, item.name, Toast.LENGTH_SHORT).show()
-            }
-            buttonLeft.setOnClickListener {
-                Toast.makeText(context, "Edit "+item.name, Toast.LENGTH_SHORT).show()
-                item.name = item.name + " edited"
-                notifyItemChanged(position)
-                controller.reset()
-            }
-            buttonRight.setOnClickListener {
-                Toast.makeText(context, item.name + " deleted", Toast.LENGTH_SHORT).show()
-                items.removeAt(position)
-                notifyItemRemoved(position)
-                notifyItemRangeChanged(position, items.size-position)
-                controller.reset()
-            }
-        }
-    }
-}
-
-class SwipeController : ItemTouchHelper.Callback() {
+open class SwipeControllerR : ItemTouchHelper.Callback() {
     var buttonWidth = 200
-    var buttonLeftText = "Left"
+    //var buttonLeftText = "Left"
     var buttonRightText = "Right"
 
     private var swipeBack = false
-    private var buttonLState = View.GONE
-    private var buttonRState = View.GONE
+    //private var buttonLState = View.GONE
+    protected var buttonRState = View.GONE
     private var recyclerView: RecyclerView? = null
     private var viewHolder: ViewHolder? = null
 
     interface ViewHolder {
-        val buttonLeft: Button
+        //val buttonLeft: Button
         val buttonRight: Button
         val text: TextView
     }
@@ -99,14 +31,14 @@ class SwipeController : ItemTouchHelper.Callback() {
     private lateinit var padding: Padding
     class Padding(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
-    fun reset() {
+    open fun reset() {
         swipeBack = false
-        buttonLState = View.GONE
+        //buttonLState = View.GONE
         buttonRState = View.GONE
         viewHolder?.let {
-            it.buttonLeft.text = ""
+            //it.buttonLeft.text = ""
             it.buttonRight.text = ""
-            it.buttonLeft.layoutParams = it.buttonLeft.layoutParams.apply { width = 0 }
+            //it.buttonLeft.layoutParams = it.buttonLeft.layoutParams.apply { width = 0 }
             it.buttonRight.layoutParams = it.buttonRight.layoutParams.apply { width = 0 }
             if (::padding.isInitialized)
                 it.text.setPadding(padding.left, padding.top, padding.right, padding.bottom)
@@ -127,11 +59,14 @@ class SwipeController : ItemTouchHelper.Callback() {
 
     override fun convertToAbsoluteDirection(flags: Int, layoutDirection: Int): Int {
         if (swipeBack) {
-            swipeBack = buttonRState == View.VISIBLE || buttonLState == View.VISIBLE
+            swipeBack = anyButtonVisible()
+            //buttonRState == View.VISIBLE || buttonLState == View.VISIBLE
             return 0
         }
         return super.convertToAbsoluteDirection(flags, layoutDirection)
     }
+
+    open fun anyButtonVisible() = (buttonRState == View.VISIBLE)
 
     override fun onChildDraw(c: Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder,
                              dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
@@ -142,17 +77,17 @@ class SwipeController : ItemTouchHelper.Callback() {
                 if (! ::padding.isInitialized)
                     padding = Padding(viewHolder.text.paddingLeft, viewHolder.text.paddingTop, viewHolder.text.paddingRight, viewHolder.text.paddingBottom)
 
-                val newX = if (buttonRState==View.VISIBLE || buttonLState==View.VISIBLE) buttonWidth
-                           else Math.min(dX.toInt().absoluteValue, buttonWidth)
+                val newX = if (buttonRState== View.VISIBLE || buttonLState== View.VISIBLE) buttonWidth
+                else Math.min(dX.toInt().absoluteValue, buttonWidth)
 
                 viewHolder.buttonRight.layoutParams =
-                    viewHolder.buttonRight.layoutParams.apply { width = if (dX < 0 || buttonRState==View.VISIBLE) newX else 0 }
+                    viewHolder.buttonRight.layoutParams.apply { width = if (dX < 0 || buttonRState== View.VISIBLE) newX else 0 }
                 viewHolder.buttonLeft.layoutParams =
-                    viewHolder.buttonLeft.layoutParams.apply { width = if (dX > 0 || buttonLState==View.VISIBLE) newX else 0 }
+                    viewHolder.buttonLeft.layoutParams.apply { width = if (dX > 0 || buttonLState== View.VISIBLE) newX else 0 }
 
                 viewHolder.text.setPadding(
-                    if (dX < 0 || buttonRState==View.VISIBLE) -newX else padding.left, padding.top,
-                    if (dX > 0 || buttonLState==View.VISIBLE) -newX else padding.right, padding.bottom)
+                    if (dX < 0 || buttonRState== View.VISIBLE) -newX else padding.left, padding.top,
+                    if (dX > 0 || buttonLState== View.VISIBLE) -newX else padding.right, padding.bottom)
 
                 super.onChildDraw(c, recyclerView, viewHolder, 0f, dY, actionState, isCurrentlyActive)
             }
@@ -223,4 +158,28 @@ class SwipeController : ItemTouchHelper.Callback() {
             it.isClickable = isClickable
         }
     }
+}
+
+
+class SwipeControlerLR : SwipeControllerR() {
+    var buttonLeftText = "Left"
+    private var buttonLState = View.GONE
+    private var viewHolder: ViewHolder? = null
+
+    interface ViewHolder: SwipeControllerR.ViewHolder {
+        val buttonLeft: Button
+    }
+
+    override fun reset() {
+        buttonLState = View.GONE
+        viewHolder?.let {
+            it.buttonLeft.text = ""
+            it.buttonLeft.layoutParams = it.buttonLeft.layoutParams.apply { width = 0 }
+        }
+        super.reset()
+    }
+
+    override fun anyButtonVisible() = (buttonRState == View.VISIBLE || buttonLState == View.VISIBLE)
+
+
 }
