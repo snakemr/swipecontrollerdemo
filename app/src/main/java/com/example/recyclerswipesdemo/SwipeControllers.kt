@@ -13,39 +13,39 @@ import kotlin.math.absoluteValue
 
 open class SwipeControllerR : ItemTouchHelper.Callback() {
     var buttonWidth = 200
-    //var buttonLeftText = "Left"
     var buttonRightText = "Right"
 
     private var swipeBack = false
-    //private var buttonLState = View.GONE
     protected var buttonRState = View.GONE
     private var recyclerView: RecyclerView? = null
     private var viewHolder: ViewHolder? = null
 
     interface ViewHolder {
-        //val buttonLeft: Button
         val buttonRight: Button
         val text: TextView
     }
 
-    private lateinit var padding: Padding
+    protected lateinit var padding: Padding
     class Padding(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
-    open fun reset() {
+    fun reset() {
         swipeBack = false
-        //buttonLState = View.GONE
-        buttonRState = View.GONE
+        resetButtons()
         viewHolder?.let {
-            //it.buttonLeft.text = ""
-            it.buttonRight.text = ""
-            //it.buttonLeft.layoutParams = it.buttonLeft.layoutParams.apply { width = 0 }
-            it.buttonRight.layoutParams = it.buttonRight.layoutParams.apply { width = 0 }
             if (::padding.isInitialized)
                 it.text.setPadding(padding.left, padding.top, padding.right, padding.bottom)
         }
         recyclerView?.let {
             it.setOnTouchListener { v, event -> false }
             setItemsClickable(it, true)
+        }
+    }
+
+    protected open fun resetButtons() {
+        buttonRState = View.GONE
+        viewHolder?.let {
+            it.buttonRight.text = ""
+            it.buttonRight.layoutParams = it.buttonRight.layoutParams.apply { width = 0 }
         }
     }
 
@@ -60,7 +60,6 @@ open class SwipeControllerR : ItemTouchHelper.Callback() {
     override fun convertToAbsoluteDirection(flags: Int, layoutDirection: Int): Int {
         if (swipeBack) {
             swipeBack = anyButtonVisible()
-            //buttonRState == View.VISIBLE || buttonLState == View.VISIBLE
             return 0
         }
         return super.convertToAbsoluteDirection(flags, layoutDirection)
@@ -68,31 +67,52 @@ open class SwipeControllerR : ItemTouchHelper.Callback() {
 
     open fun anyButtonVisible() = (buttonRState == View.VISIBLE)
 
+    protected open fun setButtonsLayout(viewHolder: RecyclerView.ViewHolder, dX: Float, newX: Int) {
+        if (viewHolder is ViewHolder)
+            viewHolder.buttonRight.layoutParams =
+                viewHolder.buttonRight.layoutParams.apply { width = if (dX < 0 || buttonRState== View.VISIBLE) newX else 0 }
+    }
+
+    protected open fun setPadding(viewHolder: RecyclerView.ViewHolder, dX: Float, newX: Int) {
+        if (viewHolder is ViewHolder)
+            viewHolder.text.setPadding(
+                if (dX < 0 || buttonRState== View.VISIBLE) -newX else padding.left, padding.top, padding.right, padding.bottom)
+    }
+
+    protected open fun showButtonsIfNeed(viewHolder: RecyclerView.ViewHolder, dX: Float) {
+        if (dX < -buttonWidth) {
+            buttonRState = View.VISIBLE
+            if (viewHolder is ViewHolder) viewHolder.buttonRight.text = buttonRightText
+        }
+    }
+
+    protected open fun saveViewHolder(viewHolder: RecyclerView.ViewHolder) {
+        if (viewHolder is ViewHolder) this.viewHolder = viewHolder
+    }
+
+    protected open fun doShift(viewHolder: RecyclerView.ViewHolder, dX: Float) {
+        val newX = if (anyButtonVisible()) buttonWidth
+                   else Math.min(dX.toInt().absoluteValue, buttonWidth)
+        setButtonsLayout(viewHolder, dX, newX)
+        setPadding(viewHolder, dX, newX)
+    }
+
     override fun onChildDraw(c: Canvas, recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder,
                              dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean) {
         if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
             if (viewHolder is ViewHolder) {
                 this.recyclerView = recyclerView
-                this.viewHolder = viewHolder
+                saveViewHolder(viewHolder)
+
                 if (! ::padding.isInitialized)
                     padding = Padding(viewHolder.text.paddingLeft, viewHolder.text.paddingTop, viewHolder.text.paddingRight, viewHolder.text.paddingBottom)
 
-                val newX = if (buttonRState== View.VISIBLE || buttonLState== View.VISIBLE) buttonWidth
-                else Math.min(dX.toInt().absoluteValue, buttonWidth)
-
-                viewHolder.buttonRight.layoutParams =
-                    viewHolder.buttonRight.layoutParams.apply { width = if (dX < 0 || buttonRState== View.VISIBLE) newX else 0 }
-                viewHolder.buttonLeft.layoutParams =
-                    viewHolder.buttonLeft.layoutParams.apply { width = if (dX > 0 || buttonLState== View.VISIBLE) newX else 0 }
-
-                viewHolder.text.setPadding(
-                    if (dX < 0 || buttonRState== View.VISIBLE) -newX else padding.left, padding.top,
-                    if (dX > 0 || buttonLState== View.VISIBLE) -newX else padding.right, padding.bottom)
+                doShift(viewHolder, dX)
 
                 super.onChildDraw(c, recyclerView, viewHolder, 0f, dY, actionState, isCurrentlyActive)
             }
 
-            if (buttonLState == View.GONE && buttonRState == View.GONE && viewHolder is ViewHolder)
+            if (!anyButtonVisible() && viewHolder is ViewHolder)
                 setTouchListener(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
         }
     }
@@ -105,15 +125,9 @@ open class SwipeControllerR : ItemTouchHelper.Callback() {
                 event.action == MotionEvent.ACTION_CANCEL || event.action == MotionEvent.ACTION_UP
 
             if (swipeBack) {
-                if (dX < -buttonWidth) {
-                    buttonRState = View.VISIBLE
-                    if (viewHolder is ViewHolder) viewHolder.buttonRight.text = buttonRightText
-                } else if (dX > buttonWidth) {
-                    buttonLState = View.VISIBLE
-                    if (viewHolder is ViewHolder) viewHolder.buttonLeft.text = buttonLeftText
-                }
+                showButtonsIfNeed(viewHolder, dX)
 
-                if (buttonLState == View.VISIBLE || buttonRState == View.VISIBLE) {
+                if (anyButtonVisible()) {
                     setTouchDownListener(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
                     setItemsClickable(recyclerView, false)
                 }
@@ -141,12 +155,7 @@ open class SwipeControllerR : ItemTouchHelper.Callback() {
                 recyclerView.setOnTouchListener { v2, event2 -> false }
                 setItemsClickable(recyclerView, true)
                 swipeBack = false
-                buttonLState = View.GONE
-                buttonRState = View.GONE
-                if (viewHolder is ViewHolder) {
-                    viewHolder.buttonRight.text = ""
-                    viewHolder.buttonLeft.text = ""
-                }
+                resetButtons()
                 onChildDraw(c, recyclerView, viewHolder,0f, dY, actionState, isCurrentlyActive)
             }
             false
@@ -161,25 +170,56 @@ open class SwipeControllerR : ItemTouchHelper.Callback() {
 }
 
 
-class SwipeControlerLR : SwipeControllerR() {
+open class SwipeControllerLR : SwipeControllerR() {
     var buttonLeftText = "Left"
-    private var buttonLState = View.GONE
+    protected var buttonLState = View.GONE
     private var viewHolder: ViewHolder? = null
 
     interface ViewHolder: SwipeControllerR.ViewHolder {
         val buttonLeft: Button
     }
 
-    override fun reset() {
+    override fun resetButtons() {
         buttonLState = View.GONE
         viewHolder?.let {
             it.buttonLeft.text = ""
             it.buttonLeft.layoutParams = it.buttonLeft.layoutParams.apply { width = 0 }
         }
-        super.reset()
+        super.resetButtons()
+    }
+
+    override open fun saveViewHolder(viewHolder: RecyclerView.ViewHolder) {
+        super.saveViewHolder(viewHolder)
+        if (viewHolder is ViewHolder) this.viewHolder = viewHolder
     }
 
     override fun anyButtonVisible() = (buttonRState == View.VISIBLE || buttonLState == View.VISIBLE)
 
+    override open fun setButtonsLayout(viewHolder: RecyclerView.ViewHolder, dX: Float, newX: Int) {
+        super.setButtonsLayout(viewHolder, dX, newX)
+        if (viewHolder is ViewHolder)
+            viewHolder.buttonLeft.layoutParams =
+                viewHolder.buttonLeft.layoutParams.apply { width = if (dX > 0 || buttonLState== View.VISIBLE) newX else 0 }
+    }
+
+    override open fun setPadding(viewHolder: RecyclerView.ViewHolder, dX: Float, newX: Int) {
+        if (viewHolder is ViewHolder)
+            viewHolder.text.setPadding(
+                if (dX < 0 || buttonRState== View.VISIBLE) -newX else padding.left, padding.top,
+                if (dX > 0 || buttonLState== View.VISIBLE) -newX else padding.right, padding.bottom)
+    }
+
+    override open fun showButtonsIfNeed(viewHolder: RecyclerView.ViewHolder, dX: Float) {
+        if (dX < -buttonWidth) {
+            buttonRState = View.VISIBLE
+            if (viewHolder is ViewHolder) viewHolder.buttonRight.text = buttonRightText
+        } else if (dX > buttonWidth) {
+            buttonLState = View.VISIBLE
+            if (viewHolder is ViewHolder) viewHolder.buttonLeft.text = buttonLeftText
+        }
+    }
+}
+
+class SwipeControllerRR : SwipeControllerLR() {
 
 }

@@ -29,26 +29,54 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val controller1 = SwipeControllerR().apply {
+            buttonRightText = "Delete"
+        }
+        val adapter1 = TemplateAdapterR(
+            (1..32).map {
+                Template("List 1 - Item "+it.toString())
+            }.toMutableList()
+            ,controller1
+        )
+        list1.adapter = adapter1
+        list1.layoutManager = LinearLayoutManager(this)
+        ItemTouchHelper(controller1).attachToRecyclerView(list1)
 
-        val controller = SwipeController().apply {
+
+        val controller2 = SwipeControllerLR().apply {
             buttonLeftText = "Edit"
             buttonRightText = "Delete"
         }
-
-        val adapter = TemplateAdapter(
+        val adapter2 = TemplateAdapterLR(
             (1..32).map {
-                Template("Item "+it.toString())
+                Template("List 2 - Item "+it.toString())
             }.toMutableList()
-            ,controller
+            ,controller2
         )
+        list2.adapter = adapter2
+        list2.layoutManager = LinearLayoutManager(this)
+        ItemTouchHelper(controller2).attachToRecyclerView(list2)
 
-        list.adapter = adapter
-        list.layoutManager = LinearLayoutManager(this)
-        ItemTouchHelper(controller).attachToRecyclerView(list)
+        val controller3 = SwipeControllerRR().apply {
+            buttonLeftText = "Edit"
+            buttonRightText = "Delete"
+        }
+        val adapter3 = TemplateAdapterRR(
+            (1..32).map {
+                Template("List 3 - Item "+it.toString())
+            }.toMutableList()
+            ,controller3
+        )
+        list3.adapter = adapter3
+        list3.layoutManager = LinearLayoutManager(this)
+        ItemTouchHelper(controller3).attachToRecyclerView(list3)
     }
 }
 
-class TemplateAdapter(var items: MutableList<Template>, val controller: SwipeController) : RecyclerView.Adapter<TemplateAdapter.ViewHolder>(){
+
+///////////////////////////////// No classification: ///////////////////////////////////////////////
+class TemplateAdapter(var items: MutableList<Template>, val controller: SwipeController)
+    : RecyclerView.Adapter<TemplateAdapter.ViewHolder>(){
     override fun getItemCount() = items.size
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item, parent, false))
@@ -79,6 +107,8 @@ class TemplateAdapter(var items: MutableList<Template>, val controller: SwipeCon
     }
 }
 
+
+///////////////////////////////// No classification: ///////////////////////////////////////////////
 class SwipeController : ItemTouchHelper.Callback() {
     var buttonWidth = 200
     var buttonLeftText = "Left"
